@@ -1,0 +1,19 @@
+groups:
+- name: kubernetes_alerts
+  interval: 30s
+  rules:
+  - alert: PodRestartingTooOften
+    expr: rate(kube_pod_container_status_restarts_total[15m]) > 0
+    for: 5m
+    labels:
+      severity: warning
+    annotations:
+      summary: "Pod {{ $labels.namespace }}/{{ $labels.pod }} is restarting frequently"
+
+  - alert: PodMemoryUsageHigh
+    expr: (container_memory_usage_bytes / container_spec_memory_limit_bytes) * 100 > 80
+    for: 5m
+    labels:
+      severity: warning
+    annotations:
+      summary: "Pod memory usage is above 80%"

@@ -1,0 +1,22 @@
+---
+- name: Configure logrotate cron job to run every 10 minutes between 2h-4h
+  hosts: all
+  become: yes
+  tasks:
+    - name: Create logrotate cron job
+      cron:
+        name: "Logrotate every 10 minutes during 2-4 AM"
+        minute: "*/10"
+        hour: "2-4"
+        job: "/usr/sbin/logrotate /etc/logrotate.conf"
+        user: root
+        state: present
+
+    - name: Verify cron job created
+      shell: crontab -l | grep logrotate
+      register: cron_output
+      changed_when: false
+
+    - name: Display cron configuration
+      debug:
+        msg: "{{ cron_output.stdout }}"

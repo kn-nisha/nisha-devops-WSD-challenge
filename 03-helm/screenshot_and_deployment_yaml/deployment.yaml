@@ -1,0 +1,152 @@
+---
+# Source: elasticsearch/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: es-secret
+  namespace: default
+type: Opaque
+stringData:
+  esURI: http://customer-abc-headless:9200
+---
+# Source: elasticsearch/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: elasticsearch-fluentd-config
+  namespace: default
+data:
+  fluentd.conf: |
+    <source>
+      @type tail
+      path /usr/share/elasticsearch/logs/*.log
+      pos_file /tmp/log.pos
+      read_from_head true
+      <parse>
+        @type regexp
+        expression /^(?<msg>.*)$/
+      </parse>
+      tag graylog2
+    </source>
+
+    <filter graylog2.**>
+      @type record_transformer
+      <record>
+        facility "elasticsearch"
+        component "elasticsearch"
+        facet "elasticsearch"
+        tag ${tag}
+        namespace "default"
+      </record>
+    </filter>
+
+    <match graylog2.**>
+      @type gelf
+      host graylog 
+      port 12201
+      protocol udp
+    </match>
+---
+# Source: elasticsearch/templates/service.yaml
+kind: Service
+apiVersion: v1
+metadata:
+  name: customer-abc-elasticsearch
+  namespace: default
+  labels:
+    app: "customer-abc-elasticsearch"
+spec:
+  type: ClusterIP
+  selector:
+    app: "customer-abc-elasticsearch"
+  publishNotReadyAddresses: false
+  ports:
+  - name: http
+    protocol: TCP
+    port: 9200
+  - name: transport
+    protocol: TCP
+    port: 9300
+  - name: metrics
+    port: 9114
+---
+# Source: elasticsearch/templates/service.yaml
+kind: Service
+apiVersion: v1
+metadata:
+  name: customer-abc-elasticsearch-headless
+  namespace: default
+  labels:
+    app: "customer-abc-elasticsearch"
+  annotations:
+    service.alpha.kubernetes.io/tolerate-unready-endpoints: "true"
+spec:
+  clusterIP: None
+  publishNotReadyAddresses: true
+  selector:
+    app: "customer-abc-elasticsearch"
+  ports:
+  - name: http
+    port: 9200
+  - name: transport
+    port: 9300
+  - name: metrics
+    port: 9114
+---
+# Source: elasticsearch/templates/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: customer-abc-elasticsearch
+  namespace: default
+  labels:
+    app: "customer-abc-elasticsearch"
+spec:
+  serviceName: customer-abc-elasticsearch-headless
+  selector:
+    matchLabels:
+      app: "customer-abc-elasticsearch"
+  replicas: 3
+  volumeClaimTemplates:
+  - metadata:
+      name: customer-abc-elasticsearch
+    spec:
+      accessModes:
+      - ReadWriteOnce
+      resources:
+        requests:
+          storage: 10Gi
+      storageClassName: standard
+  template:
+    metadata:
+      labels:
+        app: "customer-abc-elasticsearch"
+    spec:
+      containers:
+      - name: elasticsearch
+        image: elasticsearch:7.17.3
+        ports:
+        - name: http
+          containerPort: 9200
+        - name: transport
+          containerPort: 9300
+        resources:
+          requests:
+            cpu: "0.2"
+            memory: 1Gi
+          limits:
+            cpu: "1"
+            memory: 2Gi
+        env:
+          - name: cluster.name
+            value: "customer-abc-elasticsearch"
+          - name: discovery.seed_hosts
+            value: "customer-abc-elasticsearch-headless"
+          - name: cluster.initial_master_nodes
+            value: customer-abc-elasticsearch-0,customer-abc-elasticsearch-1,customer-abc-elasticsearch-2,
+          - name: ES_JAVA_OPTS
+            value: "-Xmx1g -Xms1g"
+        volumeMounts:
+          - name: "customer-abc-elasticsearch"
+            mountPath: /usr/share/elasticsearch/data
+

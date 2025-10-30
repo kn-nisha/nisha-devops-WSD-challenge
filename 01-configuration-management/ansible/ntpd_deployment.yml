@@ -1,0 +1,63 @@
+---
+- name: Deploy ntpd package with custom configuration
+  hosts: app_servers,db_servers,web_servers
+  become: yes
+  tasks:
+    - name: Install ntpd package
+      apt:
+        name: ntp
+        state: present
+        update_cache: yes
+
+    - name: Deploy custom ntpd.conf
+      template:
+        src: templates/ntp.conf.j2
+        dest: /etc/ntp.conf
+        owner: root
+        group: root
+        mode: '0644'
+      notify: restart ntpd
+
+    - name: Ensure ntpd service is enabled and running
+      service:
+        name: ntp
+        state: started
+        enabled: yes
+
+  handlers:
+    - name: restart ntpd
+      service:
+        name: ntp
+        state: restarted
+
+- name: Deploy Nagios monitoring templates
+  hosts: monitoring
+  become: yes
+  tasks:
+    - name: Create Nagios host configurations
+      template:
+        src: templates/nagios_host.cfg.j2
+        dest: "/etc/nagios/conf.d/{{ hostvars[item].inventory_hostname }}.cfg"
+        owner: nagios
+        group: nagios
+        mode: '0644'
+      with_items:
+        - app-vm1.fra1.internal
+        - db-vm1.fra1.db
+        - web-vm1.fra1.web
+      notify: restart nagios
+
+    - name: Verify Nagios configuration
+      command: /usr/sbin/nagios -v /etc/nagios/nagios.cfg
+      register: nagios_verify
+      changed_when: false
+
+    - name: Display verification result
+      debug:
+        msg: "{{ nagios_verify.stdout }}"
+
+  handlers:
+    - name: restart nagios
+      service:
+        name: nagios
+        state: restarted
