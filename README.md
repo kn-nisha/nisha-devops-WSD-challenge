@@ -1,7 +1,7 @@
 # WallStreetDocs DevOps Challenge Solutions
 
 Candidate: Kamrun Nahar Nisha  
-Date & Time: October 31, 2025 – 4:00 AM BST
+Date & Time: October 31, 2025 – 4:00 AM BST  
 Corresponding CET: October 30, 2025 – 11:00 PM CET
 
 ## Overview
