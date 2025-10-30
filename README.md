@@ -128,7 +128,7 @@ All solutions were tested in:
 - **OS:** Ubuntu 20.04.6 LTS (WSL2)
 - **Ansible:** 2.9.16
 - **Docker:** 28.4.0
-- **Docker Compose:** v2.24.0
+- **Docker Compose:** v2.39.2-desktop.1
 - **Kubernetes:** Minikube v1.37.0
 - **Helm:** v3.19.0
 
